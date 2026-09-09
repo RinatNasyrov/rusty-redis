@@ -35,6 +35,7 @@ fn read_input(mut reader: &mut BufReader<&TcpStream>) -> Input {
     reader.read_line(&mut line).unwrap();
 
     match line.chars().next().unwrap() {
+        // Однострочники повторно читаем поучается!
         '+' => SimpleString(read_simple_string(&mut reader)),
         '-' => ErrorMessenge(read_simple_string(&mut reader)),
         ':' => Integer(read_integer(&mut reader)),
