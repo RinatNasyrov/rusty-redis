@@ -36,9 +36,18 @@ fn read_input(mut reader: &mut BufReader<&TcpStream>) -> Input {
 
     match line.chars().next().unwrap() {
         // Однострочники повторно читаем поучается!
-        '+' => SimpleString(read_simple_string(&mut reader)),
-        '-' => ErrorMessenge(read_simple_string(&mut reader)),
-        ':' => Integer(read_integer(&mut reader)),
+        '+' => {
+            let simple_string = String::from(line[1..].trim());
+            SimpleString(simple_string)
+        }
+        '-' => {
+            let error_messenge = String::from(line[1..].trim());
+            ErrorMessenge(error_messenge)
+        }
+        ':' => {
+            let number: usize = line[1..].trim().parse().expect("Не целое число");
+            Integer(number)
+        }
         '$' => {
             // TODO: Проверить, что такой способ извлечения размера точно рабочий
             let size: usize = line[1..].trim().parse().expect("bullshit input");
@@ -53,28 +62,10 @@ fn read_input(mut reader: &mut BufReader<&TcpStream>) -> Input {
     }
 }
 
-fn read_simple_string(reader: &mut BufReader<&TcpStream>) -> String {
-    let mut line = String::new();
-    reader.read_line(&mut line);
-    line
-}
-
-fn read_integer(reader: &mut BufReader<&TcpStream>) -> usize {
-    let mut line = String::new();
-    reader.read_line(&mut line);
-    print!("hii {line}");
-    line.trim().parse().expect("Не целое число")
-}
-
-fn read_error_messenge(reader: &mut BufReader<&TcpStream>) -> String {
-    let mut line = String::new();
-    reader.read_line(&mut line);
-    line
-}
-
 fn read_bulk_string(size: usize, reader: &mut BufReader<&TcpStream>) -> String {
     // \r\n прочитать еще
     let mut buffer = vec![0; size + 2];
+    buffer.truncate(size);
     reader.read_exact(&mut buffer);
     String::from_utf8(buffer).unwrap_or_default()
 }
