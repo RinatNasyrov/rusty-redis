@@ -1,6 +1,7 @@
 // use std::io;
 use std::io::BufRead;
 use std::io::Read;
+use std::result;
 use std::{
     io::{self, BufReader, BufWriter, prelude::*},
     net::{TcpListener, TcpStream},
@@ -63,10 +64,13 @@ fn read_input(mut reader: &mut BufReader<&TcpStream>) -> Input {
 }
 
 fn read_bulk_string(size: usize, reader: &mut BufReader<&TcpStream>) -> String {
-    // \r\n прочитать еще
-    let mut buffer = vec![0; size + 2];
-    buffer.truncate(size);
-    reader.read_exact(&mut buffer);
+    let mut buffer = vec![0; size];
+    reader.read_exact(&mut buffer).unwrap();
+    // Двигаем указатель в потоке, чтобы дать понять,
+    // что перенос строки мы тоже прочитали
+    // (просто считать ровно на два байта больше - не работает,
+    // символы переноса читаются следующим read_line'ом)
+    reader.consume(2);
     String::from_utf8(buffer).unwrap_or_default()
 }
 
