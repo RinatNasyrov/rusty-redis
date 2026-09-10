@@ -1,7 +1,6 @@
 // use std::io;
 use std::io::BufRead;
 use std::io::Read;
-use std::result;
 use std::{
     io::{self, BufReader, BufWriter, prelude::*},
     net::{TcpListener, TcpStream},
