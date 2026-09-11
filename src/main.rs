@@ -10,10 +10,18 @@ fn main() {
         // Пока обрабатываем все в основном потоке, потом вынесем в отдельные
         let mut reader = BufReader::new(&stream);
         loop {
-            process_input(read_input(&mut reader));
+            execute_command(read_resp_messenge(&mut reader));
         }
     }
 }
-fn process_input(input: Input) {
-    println!("{input:?}");
+fn execute_command(input: RESPMessenge) {
+    let plain_command = input.get_plain_command();
+    // Матчим именно срез потому, что со срезами матчинг работает нормально,
+    // а сложные объекты с литералами сопоставлять не может, тк в расте не принято
+    // чтобы встроенные операторы языка делали неявные преобразования
+    match plain_command[..] {
+        ["PING"] => println!("PONG"),
+        ["COMMAND", "HELP"] => println!("Подробная справка"),
+        _ => println!("Неизвестная комманда"),
+    }
 }

@@ -1,4 +1,4 @@
-use crate::Input::*;
+use crate::RESPMessenge::*;
 use std::io::Read;
 use std::{
     io::{BufReader, prelude::*},
@@ -6,16 +6,32 @@ use std::{
 };
 
 #[derive(Debug)]
-pub enum Input {
+pub enum RESPMessenge {
     SimpleString(String),
     ErrorMessenge(String),
     Integer(usize),
     BulkString(String),
-    Array(Vec<Input>),
+    Array(Vec<RESPMessenge>),
     None,
 }
 
-pub fn read_input(mut reader: &mut BufReader<&TcpStream>) -> Input {
+impl RESPMessenge {
+    pub fn get_plain_command(&self) -> Vec<&str> {
+        let mut result = Vec::new();
+        self.collect_command_parts(&mut result);
+        result
+    }
+
+    fn collect_command_parts<'a>(&'a self, buffer: &mut Vec<&'a str>) {
+        match self {
+            SimpleString(value) | BulkString(value) => buffer.push(value.as_str()),
+            Array(values) => values.iter().for_each(|v| v.collect_command_parts(buffer)),
+            _ => return,
+        }
+    }
+}
+
+pub fn read_resp_messenge(mut reader: &mut BufReader<&TcpStream>) -> RESPMessenge {
     let mut line = String::new();
     reader.read_line(&mut line).unwrap();
 
@@ -55,11 +71,11 @@ fn read_bulk_string(size: usize, reader: &mut BufReader<&TcpStream>) -> String {
     String::from_utf8(buffer).unwrap_or_default()
 }
 
-fn read_array(size: usize, reader: &mut BufReader<&TcpStream>) -> Vec<Input> {
+fn read_array(size: usize, reader: &mut BufReader<&TcpStream>) -> Vec<RESPMessenge> {
     let mut counter = size;
-    let mut result: Vec<Input> = Vec::new();
+    let mut result: Vec<RESPMessenge> = Vec::new();
     while counter > 0 {
-        result.push(read_input(reader));
+        result.push(read_resp_messenge(reader));
         counter -= 1;
     }
 
