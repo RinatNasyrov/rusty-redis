@@ -31,6 +31,8 @@ impl RESPMessenge {
     }
 }
 
+// mut <имя поля>.. - нужно чтобы
+// ..&mut <имя типа> - нужно чтобы
 pub fn read_resp_messenge(mut reader: &mut BufReader<&TcpStream>) -> RESPMessenge {
     let mut line = String::new();
     reader.read_line(&mut line).unwrap();
