@@ -43,6 +43,6 @@ pub fn execute_command(
             format!(":{}\r\n", result).to_string()
         }
         ["COMMAND", "HELP"] => "Подробная справка\r\n".to_string(),
-        _ => "-Неизвестная комманда\r\n".to_string(),
+        _ => "-Неизвестная команда\r\n".to_string(),
     }
 }
