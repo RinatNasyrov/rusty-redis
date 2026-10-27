@@ -7,7 +7,7 @@ type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: Option<mpsc::Sender<Job>>,
 }
 
 impl ThreadPool {
@@ -29,7 +29,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -38,7 +41,25 @@ impl ThreadPool {
     {
         let job = Box::new(f);
 
-        self.sender.send(job).unwrap();
+        // Берем содержимое option'а
+        self.sender.as_ref().unwrap().send(job).unwrap();
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+        // Просто притерировать воркеров нельзя,
+        // тк join() забирает владение и компилятор ругается на это
+        // drain() же извлекает каждый элемент вектора с концами прям
+        // чтоб его можно было отдать
+        for worker in self.workers.drain(..) {
+            println!("Shutting down worker {}", worker.id);
+
+            // По идее основной поток будет ждать завершения рабочих потоков
+            // при завершении работы программы
+            worker.thread.join().unwrap();
+        }
     }
 }
 
@@ -59,11 +80,21 @@ impl Worker {
                 // так нельзя делать здесь, тк while let/if let/match
                 // не отпустит мьютекс канала пока весь блок вместе с job
                 // не выполнится полностью, а значит другие потоки будут простаивать
-                let job = receiver.lock().unwrap().recv().unwrap();
+                let message = receiver.lock().unwrap().recv();
 
-                println!("Worker {id} got a job; executing.");
+                // При закрытии sender'а перестаем читать его в цикле и позволяем
+                // воркеру завершиться
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job; executing.");
 
-                job();
+                        job();
+                    }
+                    Err(_) => {
+                        println!("Worker {id} disconnected; shutting down.");
+                        break;
+                    }
+                }
             }
         });
 
