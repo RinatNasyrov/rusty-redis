@@ -31,6 +31,7 @@ impl RESPMessenge {
     }
 }
 
+// Пояснение к параметрам метода
 // mut <имя поля>.. - нужно чтобы
 // ..&mut <имя типа> - нужно чтобы
 pub fn read_resp_messenge(mut reader: &mut BufReader<&TcpStream>) -> RESPMessenge {
@@ -39,7 +40,11 @@ pub fn read_resp_messenge(mut reader: &mut BufReader<&TcpStream>) -> RESPMesseng
 
     match line.chars().next().unwrap() {
         '+' => {
-            let simple_string = String::from(line[1..].trim());
+            // Прям здесь в апперкейс все приведем, чтоб при матчинге в execute_command
+            // совпадало
+            // В collect_command_parts приведение сделать нельзя, тк там value - только для чтения ссылка
+            // и оттуда поменять ниче не сможем
+            let simple_string = String::from(line[1..].trim()).to_ascii_uppercase();
             SimpleString(simple_string)
         }
         '-' => {

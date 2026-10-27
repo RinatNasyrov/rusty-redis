@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::{io::BufReader, net::TcpListener, net::TcpStream};
+use std::{io::BufReader, net::Shutdown, net::TcpListener, net::TcpStream};
 
 fn main() {
     // Соединение и многопоточность
@@ -14,8 +14,15 @@ fn main() {
     let kv: HashMap<String, String> = HashMap::new();
     let kv_mutex = Arc::new(Mutex::new(kv));
 
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
+    // Полученные потоки ввода-вывода сохраним чтобы погасить, когда перестанем слушать
+    // входящие соединения
+    // Погасим потоки - закончатся циклы в обработчиках
+    let mut stream_vec: Vec<TcpStream> = Vec::new();
+
+    for connection in listener.incoming() {
+        let stream = connection.unwrap();
+        let stream_clone = stream.try_clone().unwrap();
+        stream_vec.push(stream_clone);
 
         // Передаем объект в замыкание
         // мьютекс - очевидно нужен чтоб избежать состояния гонки
@@ -30,10 +37,17 @@ fn main() {
         pool.execute(move || {
             handle_connection(stream, Arc::clone(&value));
         });
+        // Иммитация прерывания работы
+        break;
+    }
+
+    // Гасим потоки ввода-вывода, когда перестали слушать соединения
+    for stream in stream_vec {
+        let _ = stream.shutdown(Shutdown::Both);
     }
 }
 
-fn handle_connection(stream: TcpStream, kv_mutex: Arc<Mutex<HashMap<String, String>>>) {
+fn handle_connection(stream: TcpStream, mutex_arc: Arc<Mutex<HashMap<String, String>>>) {
     let mut reader = BufReader::new(&stream);
     loop {
         // Пока команда не прочитана полностью, обработка
@@ -43,8 +57,8 @@ fn handle_connection(stream: TcpStream, kv_mutex: Arc<Mutex<HashMap<String, Stri
         // Для отладки, потом вывести в лог
         println!("{messenge:?}");
 
-        let mut kv = kv_mutex.lock().unwrap();
-        let response = execute_command(messenge, &mut kv);
+        let mut mutex = mutex_arc.lock().unwrap();
+        let response = execute_command(messenge, &mut mutex);
         // Здесь прикол чтобы обойти ограничение сосуществование
         // мутабельной и иммутабельной ссылок, вызываем метод на
         // иммутабельной ссылке, для которой реализован трейт Write
